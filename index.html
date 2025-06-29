@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Join Request - TVN Stream</title>
+  <title>On-Air Stream</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js"></script>
@@ -29,44 +29,44 @@
       max-width: 420px;
     }
     h2, h3 {
-    text-align: center;
-    margin: 10px 0;
-  }
-  input, button {
-    width: 100%;
-    padding: 14px;
-    font-size: 16px;
-    margin: 8px 0;
-    border: none;
-    border-radius: 5px;
-    box-sizing: border-box;
-  }
-  input {
-    background: #333;
-    color: white;
-  }
-  input::placeholder {
-    color: #aaa;
-  }
-  button {
-    background-color: #1db954;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  button:hover {
-    background-color: #17a246;
-  }
-  .google-btn {
-    background-color: #db4437;
-  }
-  .google-btn:hover {
-    background-color: #c53727;
-  }
-  .hidden {
-    display: none;
-  }
+      text-align: center;
+      margin: 10px 0;
+    }
+    input, button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    input {
+      background: #333;
+      color: white;
+    }
+    input::placeholder {
+      color: #aaa;
+    }
+    button {
+      background-color: #1db954;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #17a246;
+    }
+    .google-btn {
+      background-color: #db4437;
+    }
+    .google-btn:hover {
+      background-color: #c53727;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -82,8 +82,8 @@
 
     <div id="verify-section" class="hidden">
       <h3>📧 Please verify your email.</h3>
-      <p>We sent a verification link to your email. Check your inbox and click the link.</p>
-      <button onclick="checkEmailVerification()">✔️ I have verified</button>
+      <p>We sent a verification link. After clicking it, this page will auto-refresh.</p>
+      <button onclick="reloadAndCheck()">🔄 Reload & Check</button>
     </div>
 
     <div id="form-section" class="hidden">
@@ -95,6 +95,7 @@
 
     <div id="waiting" class="hidden">
       <h3>⏳ Waiting for admin approval...</h3>
+      <p>This page will redirect once approved.</p>
     </div>
 
     <div id="approved" class="hidden">
@@ -103,100 +104,99 @@
   </div>
 
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
-  import {
-    getAuth,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    sendEmailVerification,
-    signInWithPopup,
-    GoogleAuthProvider,
-    reload,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
-  import {
-    getDatabase,
-    ref,
-    set,
-    onValue
-  } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      onAuthStateChanged,
+      sendEmailVerification,
+      signInWithPopup,
+      GoogleAuthProvider,
+      reload,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
+    import {
+      getDatabase,
+      ref,
+      set,
+      onValue
+    } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAs2S6iRhnYhmqNuF0QCCYu5NuzxHxIRv0",
-    authDomain: "tvnstream-b4497.firebaseapp.com",
-    databaseURL: "https://tvnstream-b4497-default-rtdb.firebaseio.com",
-    projectId: "tvnstream-b4497",
-    storageBucket: "tvnstream-b4497.appspot.com",
-    messagingSenderId: "308384754214",
-    appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
-    measurementId: "G-VFNH70R4D9"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyAs2S6iRhnYhmqNuF0QCCYu5NuzxHxIRv0",
+      authDomain: "tvnstream-b4497.firebaseapp.com",
+      databaseURL: "https://tvnstream-b4497-default-rtdb.firebaseio.com",
+      projectId: "tvnstream-b4497",
+      storageBucket: "tvnstream-b4497.appspot.com",
+      messagingSenderId: "308384754214",
+      appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
+      measurementId: "G-VFNH70R4D9"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth();
-  const db = getDatabase(app);
-  const provider = new GoogleAuthProvider();
-  let currentUid = null;
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getDatabase(app);
+    const provider = new GoogleAuthProvider();
 
-  function show(sectionId) {
-    document.querySelectorAll(".container > div").forEach(div => div.classList.add("hidden"));
-    document.getElementById(sectionId).classList.remove("hidden");
-  }
+    let currentUid = null;
 
-  window.login = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    signInWithEmailAndPassword(auth, email, password)
-      .catch(e => alert("Login error: " + e.message));
-  };
-
-  window.register = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    if (!email || !password) {
-      alert("Please enter email and password to register.");
-      return;
+    function show(sectionId) {
+      document.querySelectorAll(".container > div").forEach(div => div.classList.add("hidden"));
+      document.getElementById(sectionId).classList.remove("hidden");
     }
 
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCred) => {
-        sendEmailVerification(userCred.user).then(() => {
-          alert("✅ Verification email sent. Please check your inbox.");
-          show("verify-section");
-        });
-      })
-      .catch(e => alert("Registration error: " + e.message));
-  };
+    window.login = function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      signInWithEmailAndPassword(auth, email, password)
+        .catch(e => alert("Login error: " + e.message));
+    };
 
-  window.googleLogin = function () {
-    signInWithPopup(auth, provider)
-      .then(() => {
-        alert("✅ Google login successful!");
-        // Firebase will trigger onAuthStateChanged after this
-      })
-      .catch((error) => {
-        alert("Google login error: " + error.message);
-      });
-  };
+    window.register = function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-  window.checkEmailVerification = function () {
-    const user = auth.currentUser;
-    reload(user).then(() => {
-      if (user.emailVerified) {
-        show("form-section");
-      } else {
-        alert("❌ Email not verified yet. Please check your inbox.");
+      if (!email || !password) {
+        alert("Please enter email and password to register.");
+        return;
       }
-    });
-  };
 
-  onAuthStateChanged(auth, user => {
-    if (user) {
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCred) => {
+          sendEmailVerification(userCred.user).then(() => {
+            alert("✅ Verification email sent.");
+            show("verify-section");
+          });
+        })
+        .catch(e => alert("Registration error: " + e.message));
+    };
+
+    window.googleLogin = function () {
+      signInWithPopup(auth, provider)
+        .then(() => {
+          alert("✅ Google login successful!");
+        })
+        .catch((error) => {
+          alert("Google login error: " + error.message);
+        });
+    };
+
+    window.reloadAndCheck = function () {
+      const user = auth.currentUser;
+      if (user) {
+        reload(user).then(() => {
+          if (user.emailVerified) {
+            checkJoinRequest(user);
+          } else {
+            alert("❌ Email not verified yet.");
+          }
+        });
+      }
+    };
+
+    function checkJoinRequest(user) {
       currentUid = user.uid;
-      document.getElementById("auth-section").classList.add("hidden");
-
       const isGoogle = user.providerData.some(p => p.providerId === "google.com");
 
       if (!user.emailVerified && !isGoogle) {
@@ -210,37 +210,41 @@
         if (data) {
           if (data.status === "approved") {
             show("approved");
-            setTimeout(() => window.location.href = "live.html", 2000);
+            setTimeout(() => window.location.href = "live.html", 1500);
           } else if (data.status === "pending") {
             show("waiting");
           } else if (data.status === "denied") {
-            alert("❌ Your request was denied by the admin.");
-            signOut(auth).then(() => {
-              show("auth-section");
-            });
+            alert("❌ Your request was denied.");
+            signOut(auth).then(() => show("auth-section"));
           }
         } else {
           show("form-section");
         }
       });
-    } else {
-      show("auth-section");
     }
-  });
 
-  window.submitRequest = function () {
-    const name = document.getElementById("name").value;
-    const reason = document.getElementById("reason").value;
-    if (!name || !reason) return alert("Please fill out all fields.");
+    window.submitRequest = function () {
+      const name = document.getElementById("name").value;
+      const reason = document.getElementById("reason").value;
+      if (!name || !reason) return alert("Please fill out all fields.");
 
-    const reqRef = ref(db, 'joinRequests/' + currentUid);
-    set(reqRef, {
-      name,
-      reason,
-      status: "pending"
-    }).then(() => show("waiting"));
-  };
-</script>
+      const reqRef = ref(db, 'joinRequests/' + currentUid);
+      set(reqRef, {
+        name,
+        reason,
+        status: "pending"
+      }).then(() => show("waiting"));
+    };
 
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        reload(user).then(() => {
+          checkJoinRequest(user);
+        });
+      } else {
+        show("auth-section");
+      }
+    });
+  </script>
 </body>
 </html>
