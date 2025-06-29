@@ -93,7 +93,6 @@
       max-width: 90vw;
       background-color: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
       color: #fff;
       padding: 12px 18px;
       border-radius: 10px;
@@ -137,7 +136,7 @@
 <body>
   <h1>PRIVATE STREAM</h1>
 
-  <div class="video-wrapper" id="video-wrapper">
+  <div class="video-wrapper" id="video-wrapper" style="display: none;">
     <video id="my-player" controls playsinline></video>
 
     <div class="notice-modal" id="notice-modal">
@@ -145,18 +144,16 @@
       <div class="notice-message" id="notice-message"></div>
     </div>
   </div>
-  
-   <div class="viewer-count">
+
+  <div class="viewer-count">
     <i class="fas fa-users"></i> <span id="live-viewers">0</span>
   </div>
 
   <div class="error-section" id="error-section">
     <h2>404 - Access Denied</h2>
-    <p>You are not approved to access this live stream.</p>
+    <p>You are not approved or accessed this page directly.</p>
     <a href="index.html">Return to Request Page</a>
   </div>
-  
-
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
@@ -172,8 +169,7 @@
       projectId: "tvnstream-b4497",
       storageBucket: "tvnstream-b4497.appspot.com",
       messagingSenderId: "308384754214",
-      appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
-      measurementId: "G-VFNH70R4D9"
+      appId: "1:308384754214:web:2938e76cd29b288f75d4e7"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -192,10 +188,9 @@
       loop: { active: true }
     });
 
-    function showError(message) {
+    function showError() {
       videoWrapper.style.display = "none";
       errorSection.style.display = "block";
-      errorSection.querySelector("p").textContent = message;
     }
 
     function trackViewerCount(uid) {
@@ -226,10 +221,10 @@
 
     onAuthStateChanged(auth, async (user) => {
       const fromIndex = sessionStorage.getItem("fromIndex") === "true";
+      sessionStorage.removeItem("fromIndex");
 
-      if (!user) {
-        showError("You must log in first.");
-        setTimeout(() => window.location.href = "index.html", 2000);
+      if (!user || !fromIndex) {
+        showError();
         return;
       }
 
@@ -239,18 +234,13 @@
       const data = snapshot.val();
 
       if (!data || data.status !== "approved") {
-        if (!fromIndex) {
-          showError("You are not approved to watch this stream.");
-        } else {
-          sessionStorage.removeItem("fromIndex");
-          window.location.href = "index.html";
-        }
+        showError();
         return;
       }
 
-      errorSection.style.display = "none";
+      // Approved and came from index.html ✅
       videoWrapper.style.display = "block";
-      sessionStorage.removeItem("fromIndex");
+      errorSection.style.display = "none";
 
       trackViewerCount(uid);
       startNoticeListener();
@@ -258,10 +248,7 @@
       const streamRef = ref(db, "Live1/m3u8");
       onValue(streamRef, (snap) => {
         let encodedSrc = snap.val();
-        if (!encodedSrc) {
-          showError("Stream is currently offline.");
-          return;
-        }
+        if (!encodedSrc) return showError();
 
         try {
           const decodedSrc = atob(encodedSrc);
@@ -272,11 +259,10 @@
           } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
             video.src = decodedSrc;
           } else {
-            showError("Your browser does not support HLS streaming.");
+            showError();
           }
-        } catch (err) {
-          console.error("Stream decoding error:", err);
-          showError("Invalid stream link.");
+        } catch (e) {
+          showError();
         }
       });
     });
