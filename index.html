@@ -41,7 +41,7 @@
   </div>
 
   <script>
-    // Your Firebase config
+    // ✅ Your Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAs2S6iRhnYhmqNuF0QCCYu5NuzxHxIRv0",
       authDomain: "tvnstream-b4497.firebaseapp.com",
@@ -49,23 +49,34 @@
       appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
     };
 
+    // ✅ Initialize Firebase
     firebase.initializeApp(firebaseConfig);
 
-    const query = new URLSearchParams(window.location.search);
-    const mode = query.get("mode");
-    const oobCode = query.get("oobCode");
-
+    // ✅ Get mode and oobCode from URL
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const oobCode = params.get("oobCode");
     const box = document.getElementById("box");
+
+    console.log("mode:", mode);
+    console.log("oobCode:", oobCode);
 
     if (mode === "verifyEmail" && oobCode) {
       firebase.auth().applyActionCode(oobCode)
         .then(() => {
           box.innerHTML = `
             <h2>Email Verified!</h2>
-            <p>Your email has been successfully verified. You may now close this window or log in.</p>
+            <p>Your email has been successfully verified.</p>
+            <p>You will be redirected shortly...</p>
           `;
+
+          // ✅ Optional redirect to login after 3 seconds
+          setTimeout(() => {
+            window.location.href = "/login.html"; // change this if needed
+          }, 3000);
         })
-        .catch(error => {
+        .catch((error) => {
+          console.error("Verification error:", error.message);
           box.innerHTML = `
             <h2 class="error">Verification Failed</h2>
             <p class="error">${error.message}</p>
@@ -74,7 +85,7 @@
     } else {
       box.innerHTML = `
         <h2 class="error">Invalid Request</h2>
-        <p class="error">Missing or incorrect parameters.</p>
+        <p class="error">Missing or incorrect verification link.</p>
       `;
     }
   </script>
