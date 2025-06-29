@@ -15,6 +15,9 @@
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
   <style>
     body {
       background-color: #000;
@@ -27,6 +30,7 @@
     h1 {
       margin: 1rem;
       color: #1db954;
+      font-size: 1.5rem;
     }
 
     .video-wrapper {
@@ -42,19 +46,33 @@
       height: 100%;
     }
 
+    .viewer-count {
+      font-size: 16px;
+      color: #ccc;
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .viewer-count i {
+      color: #1db954;
+    }
+
     .error-section {
       display: none;
-      margin-top: 100px;
+      margin-top: 80px;
     }
 
     .error-section h2 {
-      font-size: 48px;
+      font-size: 32px;
       color: red;
       margin-bottom: 10px;
     }
 
     .error-section p {
-      font-size: 20px;
+      font-size: 18px;
       margin-bottom: 20px;
     }
 
@@ -65,11 +83,54 @@
       color: white;
       text-decoration: none;
       border-radius: 5px;
-      transition: 0.3s;
     }
 
-    .error-section a:hover {
-      background-color: #17a246;
+    .notice-modal {
+      position: absolute;
+      top: 30px;
+      left: 20px;
+      width: 300px;
+      max-width: 90vw;
+      background-color: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      z-index: 1000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    .notice-modal.show {
+      display: block;
+      opacity: 1;
+    }
+
+    .notice-header {
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+
+    .notice-message {
+      font-size: 0.9rem;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+
+    @media screen and (max-width: 600px) {
+      h1 {
+        font-size: 1.2rem;
+      }
+      .viewer-count {
+        font-size: 14px;
+        margin-top: 6px;
+      }
     }
   </style>
 </head>
@@ -78,6 +139,17 @@
 
   <div class="video-wrapper" id="video-wrapper">
     <video id="my-player" controls playsinline></video>
+
+    <!-- Notice Modal -->
+    <div class="notice-modal" id="notice-modal">
+      <div class="notice-header">📢 Announcement</div>
+      <div class="notice-message" id="notice-message"></div>
+    </div>
+  </div>
+
+  <!-- Viewer Count -->
+  <div class="viewer-count">
+    <i class="fas fa-users"></i> <span id="live-viewers">0</span>
   </div>
 
   <div class="error-section" id="error-section">
@@ -89,7 +161,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
-    import { getDatabase, ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js";
+    import {
+      getDatabase, ref, get, onValue, set, onDisconnect, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAs2S6iRhnYhmqNuF0QCCYu5NuzxHxIRv0",
@@ -109,6 +183,9 @@
     const video = document.getElementById("my-player");
     const videoWrapper = document.getElementById("video-wrapper");
     const errorSection = document.getElementById("error-section");
+    const viewerCountElem = document.getElementById("live-viewers");
+    const noticeModal = document.getElementById("notice-modal");
+    const noticeMessage = document.getElementById("notice-message");
 
     const plyrPlayer = new Plyr(video, {
       controls: ['play', 'mute', 'volume', 'fullscreen'],
@@ -119,6 +196,32 @@
       videoWrapper.style.display = "none";
       errorSection.style.display = "block";
       errorSection.querySelector("p").textContent = message;
+    }
+
+    function trackViewerCount(uid) {
+      const viewersRef = ref(db, 'Live1/viewers');
+      const viewerRef = ref(db, `Live1/viewers/${uid}`);
+      set(viewerRef, { joinedAt: serverTimestamp() });
+      onDisconnect(viewerRef).remove();
+
+      onValue(viewersRef, (snap) => {
+        viewerCountElem.textContent = snap.size;
+      });
+    }
+
+    function startNoticeListener() {
+      const noticeRef = ref(db, "livecoment1/notice");
+      onValue(noticeRef, (snap) => {
+        const msg = snap.val()?.trim();
+        if (msg) {
+          noticeMessage.textContent = msg;
+          noticeModal.classList.add("show");
+          clearTimeout(noticeModal.hideTimeout);
+          noticeModal.hideTimeout = setTimeout(() => {
+            noticeModal.classList.remove("show");
+          }, 20000);
+        }
+      });
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -138,11 +241,12 @@
         return;
       }
 
-      // Approved user, now fetch the stream link
+      trackViewerCount(uid);
+      startNoticeListener();
+
       const streamRef = ref(db, "Live1/m3u8");
       onValue(streamRef, (snap) => {
         let encodedSrc = snap.val();
-
         if (!encodedSrc) {
           showError("Stream is currently offline.");
           return;
@@ -154,10 +258,8 @@
             const hls = new Hls();
             hls.loadSource(decodedSrc);
             hls.attachMedia(video);
-            // Don't call .play() — user must click
           } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
             video.src = decodedSrc;
-            // Don't call .play() — user must click
           } else {
             showError("Your browser does not support HLS streaming.");
           }
