@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Email Verification | TVN Stream</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js"></script>
+  <style>
+    body {
+      background-color: #f9f9f9;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .box {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    h2 {
+      color: #28a745;
+    }
+    p {
+      font-size: 16px;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="box" id="box">
+    <h2>Verifying...</h2>
+    <p>Please wait while we verify your email address.</p>
+  </div>
+
+  <script>
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAs2S6iRhnYhmqNuF0QCCYu5NuzxHxIRv0",
+      authDomain: "tvnstream-b4497.firebaseapp.com",
+      projectId: "tvnstream-b4497",
+      appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    const query = new URLSearchParams(window.location.search);
+    const mode = query.get("mode");
+    const oobCode = query.get("oobCode");
+
+    const box = document.getElementById("box");
+
+    if (mode === "verifyEmail" && oobCode) {
+      firebase.auth().applyActionCode(oobCode)
+        .then(() => {
+          box.innerHTML = `
+            <h2>Email Verified!</h2>
+            <p>Your email has been successfully verified. You may now close this window or log in.</p>
+          `;
+        })
+        .catch(error => {
+          box.innerHTML = `
+            <h2 class="error">Verification Failed</h2>
+            <p class="error">${error.message}</p>
+          `;
+        });
+    } else {
+      box.innerHTML = `
+        <h2 class="error">Invalid Request</h2>
+        <p class="error">Missing or incorrect parameters.</p>
+      `;
+    }
+  </script>
+</body>
+</html>
