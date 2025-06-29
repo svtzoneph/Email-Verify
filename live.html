@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>On-Air Stream</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js"></script>
+
+  <!-- Plyr & HLS.js -->
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+  <style>
+    body {
+      background-color: #000;
+      color: #fff;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 1rem;
+      color: #1db954;
+    }
+
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1000px;
+      margin: auto;
+      aspect-ratio: 16 / 9;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+    }
+
+    .error-section {
+      display: none;
+      margin-top: 100px;
+    }
+
+    .error-section h2 {
+      font-size: 48px;
+      color: red;
+      margin-bottom: 10px;
+    }
+
+    .error-section p {
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+
+    .error-section a {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #1db954;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: 0.3s;
+    }
+
+    .error-section a:hover {
+      background-color: #17a246;
+    }
+  </style>
+</head>
+<body>
+  <h1>PRIVATE STREAM</h1>
+
+  <div class="video-wrapper" id="video-wrapper">
+    <video id="my-player" controls playsinline></video>
+  </div>
+
+  <div class="error-section" id="error-section">
+    <h2>404 - Access Denied</h2>
+    <p>You are not approved to access this live stream.</p>
+    <a href="index.html">Return to Request Page</a>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
+    import { getDatabase, ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAs2S6iRhnYhmqNuF0QCCYu5NuzxHxIRv0",
+      authDomain: "tvnstream-b4497.firebaseapp.com",
+      databaseURL: "https://tvnstream-b4497-default-rtdb.firebaseio.com",
+      projectId: "tvnstream-b4497",
+      storageBucket: "tvnstream-b4497.appspot.com",
+      messagingSenderId: "308384754214",
+      appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
+      measurementId: "G-VFNH70R4D9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const video = document.getElementById("my-player");
+    const videoWrapper = document.getElementById("video-wrapper");
+    const errorSection = document.getElementById("error-section");
+
+    const plyrPlayer = new Plyr(video, {
+      controls: ['play', 'mute', 'volume', 'fullscreen'],
+      loop: { active: true }
+    });
+
+    function showError(message) {
+      videoWrapper.style.display = "none";
+      errorSection.style.display = "block";
+      errorSection.querySelector("p").textContent = message;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        showError("You must log in first.");
+        setTimeout(() => window.location.href = "index.html", 2000);
+        return;
+      }
+
+      const uid = user.uid;
+      const userRef = ref(db, "joinRequests/" + uid);
+      const snapshot = await get(userRef);
+      const data = snapshot.val();
+
+      if (!data || data.status !== "approved") {
+        showError("You are not approved to watch this stream.");
+        return;
+      }
+
+      // Approved user, now fetch the stream link
+      const streamRef = ref(db, "Live1/m3u8");
+      onValue(streamRef, (snap) => {
+        let encodedSrc = snap.val();
+
+        if (!encodedSrc) {
+          showError("Stream is currently offline.");
+          return;
+        }
+
+        try {
+          const decodedSrc = atob(encodedSrc);
+          if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(decodedSrc);
+            hls.attachMedia(video);
+            // Don't call .play() — user must click
+          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = decodedSrc;
+            // Don't call .play() — user must click
+          } else {
+            showError("Your browser does not support HLS streaming.");
+          }
+        } catch (err) {
+          console.error("Stream decoding error:", err);
+          showError("Invalid stream link.");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
