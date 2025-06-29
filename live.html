@@ -241,6 +241,10 @@
         return;
       }
 
+      // ✅ Hide error and show stream when approved
+      errorSection.style.display = "none";
+      videoWrapper.style.display = "block";
+
       trackViewerCount(uid);
       startNoticeListener();
 
