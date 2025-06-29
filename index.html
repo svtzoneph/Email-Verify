@@ -130,20 +130,19 @@
       projectId: "tvnstream-b4497",
       storageBucket: "tvnstream-b4497.appspot.com",
       messagingSenderId: "308384754214",
-      appId: "1:308384754214:web:2938e76cd29b288f75d4e7",
-      measurementId: "G-VFNH70R4D9"
+      appId: "1:308384754214:web:2938e76cd29b288f75d4e7"
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth();
+    const auth = getAuth(app);
     const db = getDatabase(app);
     const provider = new GoogleAuthProvider();
 
     let currentUid = null;
 
-    function show(sectionId) {
+    function show(id) {
       document.querySelectorAll(".container > div").forEach(div => div.classList.add("hidden"));
-      document.getElementById(sectionId).classList.remove("hidden");
+      document.getElementById(id).classList.remove("hidden");
     }
 
     window.login = function () {
@@ -210,7 +209,11 @@
         if (data) {
           if (data.status === "approved") {
             show("approved");
-            setTimeout(() => window.location.href = "live.html", 1500);
+            // ✅ Session marker + redirect to stream
+            sessionStorage.setItem("fromIndex", "true");
+            setTimeout(() => {
+              window.location.href = "live.html";
+            }, 1500);
           } else if (data.status === "pending") {
             show("waiting");
           } else if (data.status === "denied") {
