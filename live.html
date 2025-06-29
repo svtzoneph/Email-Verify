@@ -39,6 +39,7 @@
       max-width: 1000px;
       margin: auto;
       aspect-ratio: 16 / 9;
+      display: none;
     }
 
     video {
@@ -136,9 +137,8 @@
 <body>
   <h1>PRIVATE STREAM</h1>
 
-  <div class="video-wrapper" id="video-wrapper" style="display: none;">
+  <div class="video-wrapper" id="video-wrapper">
     <video id="my-player" controls playsinline></video>
-
     <div class="notice-modal" id="notice-modal">
       <div class="notice-header">📢 Announcement</div>
       <div class="notice-message" id="notice-message"></div>
@@ -189,8 +189,8 @@
     });
 
     function showError() {
-      videoWrapper.style.display = "none";
       errorSection.style.display = "block";
+      videoWrapper.style.display = "none";
     }
 
     function trackViewerCount(uid) {
@@ -221,7 +221,7 @@
 
     onAuthStateChanged(auth, async (user) => {
       const fromIndex = sessionStorage.getItem("fromIndex") === "true";
-      sessionStorage.removeItem("fromIndex");
+      sessionStorage.removeItem("fromIndex"); // prevent reuse
 
       if (!user || !fromIndex) {
         showError();
@@ -238,7 +238,7 @@
         return;
       }
 
-      // Approved and came from index.html ✅
+      // ✅ Success: Approved and from index.html
       videoWrapper.style.display = "block";
       errorSection.style.display = "none";
 
@@ -247,7 +247,7 @@
 
       const streamRef = ref(db, "Live1/m3u8");
       onValue(streamRef, (snap) => {
-        let encodedSrc = snap.val();
+        const encodedSrc = snap.val();
         if (!encodedSrc) return showError();
 
         try {
@@ -261,7 +261,7 @@
           } else {
             showError();
           }
-        } catch (e) {
+        } catch (err) {
           showError();
         }
       });
